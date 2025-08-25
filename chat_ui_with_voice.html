@@ -10,7 +10,7 @@
 
   <div class="flex flex-col h-screen max-w-2xl mx-auto">
 
-    <!-- Header + 引導按鈕 -->
+    <!-- 1. Header + 引導按鈕 -->
     <header class="flex-none bg-white border-b px-6 py-4 flex items-center justify-between">
       <h1 class="text-xl font-semibold">運動AI助手</h1>
       <button id="guideBtn"
@@ -19,11 +19,13 @@
       </button>
     </header>
 
-    <!-- Chat 區 -->
-    <main id="chatArea" class="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50"></main>
+    <!-- 2. 可捲動對話區 -->
+    <main id="chatArea"
+          class="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50"></main>
 
-    <!-- 語音辨識 & 輸入區（保持原樣） -->
+    <!-- 3. 底部：語音辨識 + 手動輸入區 -->
     <footer class="flex-none bg-white border-t px-6 py-4">
+
       <div class="flex gap-2 mb-3">
         <button id="startBtn"
                 class="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg">
@@ -31,13 +33,17 @@
         </button>
         <button id="stopBtn"
                 class="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-red-500 text-white rounded-lg disabled:opacity-50"
-                disabled>🛑 停止</button>
+                disabled>
+          🛑 停止
+        </button>
         <span id="status" class="self-center text-sm text-gray-500">狀態：未啟動</span>
       </div>
+
       <textarea id="userInput"
                 rows="2"
                 placeholder="輸入文字或按 🎤 語音輸入…"
                 class="w-full resize-none border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-3"></textarea>
+
       <div class="flex items-center justify-between mb-3">
         <div class="flex gap-2">
           <button id="sendBtn"
@@ -54,6 +60,7 @@
           🔈 朗讀
         </button>
       </div>
+
       <div class="flex flex-wrap items-center gap-4 pt-2 border-t">
         <label class="text-sm whitespace-nowrap">AI 回覆朗讀：</label>
         <select id="voiceSelect" class="border rounded p-1 voiceselect"></select>
@@ -62,21 +69,46 @@
         <label class="text-sm">音調</label>
         <input id="pitch" type="range" min="0" max="2" step="0.1" value="1" class="w-24"/>
       </div>
+
     </footer>
   </div>
 
   <script>
+    // ─── 配置區 ─────────────────────────────────────────
     const API_URL = "https://premium-intimate-stallion.ngrok-free.app/chat";
 
-    // 預先選好所有 DOM
+    // 對話流程（本地維護 quickReplies），選完後再呼叫後端
+    const flow = {
+      start: { quickReplies: ["初級熱身流程","體重管理建議","肌力訓練計畫"] },
+      warmup: { quickReplies: ["動態伸展","輕量有氧"] },
+      warmup_dynamic:    { quickReplies: [] },
+      warmup_cardio:     { quickReplies: [] },
+      weight:            { quickReplies: ["減脂","增肌","維持體重"] },
+      weight_loss:       { quickReplies: [] },
+      weight_gain:       { quickReplies: [] },
+      weight_maintain:   { quickReplies: [] },
+      strength:          { quickReplies: ["胸部","腿部","核心"] },
+      strength_chest:    { quickReplies: [] },
+      strength_leg:      { quickReplies: [] },
+      strength_core:     { quickReplies: [] }
+    };
+    const nextMap = {
+      "初級熱身流程":"warmup","體重管理建議":"weight","肌力訓練計畫":"strength",
+      "動態伸展":"warmup_dynamic","輕量有氧":"warmup_cardio",
+      "減脂":"weight_loss","增肌":"weight_gain","維持體重":"weight_maintain",
+      "胸部":"strength_chest","腿部":"strength_leg","核心":"strength_core"
+    };
+    let currentNodeKey = "start";
+
+    // ─── 取得 DOM 元素 ────────────────────────────────────
     const chatArea    = document.getElementById("chatArea");
     const guideBtn    = document.getElementById("guideBtn");
     const startBtn    = document.getElementById("startBtn");
     const stopBtn     = document.getElementById("stopBtn");
-    const sendBtn     = document.getElementById("sendBtn");
-    const clearBtn    = document.getElementById("clearBtn");
     const statusEl    = document.getElementById("status");
     const userInput   = document.getElementById("userInput");
+    const sendBtn     = document.getElementById("sendBtn");
+    const clearBtn    = document.getElementById("clearBtn");
     const speakBtn    = document.getElementById("speakBtn");
     const voiceSelect = document.getElementById("voiceSelect");
     const rateSlider  = document.getElementById("rate");
@@ -84,45 +116,7 @@
     const synth       = window.speechSynthesis;
     let voices = [];
 
-    // 本地引導流程設定
-    const flow = {
-      start: {
-        quickReplies: ["初級熱身流程", "體重管理建議", "肌力訓練計畫"]
-      },
-      warmup: {
-        quickReplies: ["動態伸展", "輕量有氧"]
-      },
-      warmup_dynamic: { quickReplies: [] },
-      warmup_cardio:  { quickReplies: [] },
-      weight: {
-        quickReplies: ["減脂", "增肌", "維持體重"]
-      },
-      weight_loss:    { quickReplies: [] },
-      weight_gain:    { quickReplies: [] },
-      weight_maintain:{ quickReplies: [] },
-      strength: {
-        quickReplies: ["胸部", "腿部", "核心"]
-      },
-      strength_chest: { quickReplies: [] },
-      strength_leg:   { quickReplies: [] },
-      strength_core:  { quickReplies: [] }
-    };
-    const nextMap = {
-      "初級熱身流程": "warmup",
-      "體重管理建議": "weight",
-      "肌力訓練計畫": "strength",
-      "動態伸展": "warmup_dynamic",
-      "輕量有氧": "warmup_cardio",
-      "減脂": "weight_loss",
-      "增肌": "weight_gain",
-      "維持體重": "weight_maintain",
-      "胸部": "strength_chest",
-      "腿部": "strength_leg",
-      "核心": "strength_core"
-    };
-    let currentNodeKey = "start";
-
-    // TTS 聲音列表
+    // ─── TTS 初始化 ───────────────────────────────────────
     function populateVoices() {
       voices = synth.getVoices();
       voiceSelect.innerHTML = "";
@@ -134,8 +128,7 @@
       });
     }
     populateVoices();
-    if (synth.onvoiceschanged !== undefined)
-      synth.onvoiceschanged = populateVoices;
+    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = populateVoices;
 
     function speak(text) {
       const u = new SpeechSynthesisUtterance(text);
@@ -148,21 +141,61 @@
       synth.speak(u);
     }
 
+    // ─── 語音辨識初始化 ───────────────────────────────────
+    let recognition = null, isRecognizing = false;
+    function setupRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        alert("瀏覽器不支援語音辨識");
+        startBtn.disabled = true;
+        return;
+      }
+      recognition = new SR();
+      recognition.lang = "zh-TW";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+
+      recognition.onstart = () => {
+        isRecognizing = true;
+        statusEl.textContent = "🎤 正在辨識…";
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      };
+      recognition.onerror = e => {
+        statusEl.textContent = "錯誤：" + e.error;
+      };
+      recognition.onend = () => {
+        isRecognizing = false;
+        statusEl.textContent = "🛑 已停止";
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      };
+      recognition.onresult = event => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            userInput.value += event.results[i][0].transcript;
+          }
+        }
+      };
+    }
+    setupRecognition();
+    startBtn.onclick = () => recognition.start();
+    stopBtn.onclick  = () => recognition.stop();
+
+    // ─── 在 chatArea 增加訊息泡泡 ───────────────────────────
     function appendMessage(text, sender) {
       const box = document.createElement("div");
-      box.className = `message ${sender} p-2 rounded whitespace-pre-wrap ${
-        sender==="user"
+      box.className = `message ${sender} p-2 rounded whitespace-pre-wrap 
+        ${sender==="user"
           ? "bg-blue-100 text-right self-end"
-          : "bg-gray-100 text-left self-start"
-      }`;
+          : "bg-gray-100 text-left self-start"}`;
       box.textContent = text;
       chatArea.append(box);
       chatArea.scrollTop = chatArea.scrollHeight;
     }
 
-    // 顯示目前節點的 quick replies
+    // ─── 顯示 Quick Reply 按鈕 ──────────────────────────────
     function renderQuickReplies() {
-      // 先移除舊的
       const old = chatArea.querySelector(".quick-replies");
       if (old) old.remove();
 
@@ -182,36 +215,59 @@
       chatArea.scrollTop = chatArea.scrollHeight;
     }
 
-    // 點擊 Quick Reply 後：送到後端、顯示回覆、切換節點、繼續顯示下一組 quick replies
+    // ─── 點選 Quick Reply 即呼叫後端並切換節點 ───────────────
     async function handleSelect(label) {
-      // 1. 顯示使用者選項
+      // 顯示使用者選項
       appendMessage(label, "user");
 
-      // 2. 呼叫後端
-      let reply = "";
+      // 呼叫後端模型
+      let reply;
       try {
         const res = await fetch(API_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {"Content-Type":"application/json"},
           body: JSON.stringify({ input: label })
         });
         reply = await res.text();
       } catch (e) {
-        reply = "⚠️ 無法取得 AI 回應";
         console.error(e);
+        reply = "⚠️ 無法取得 AI 回應";
       }
       appendMessage(reply, "ai");
 
-      // 3. 進入下一節點
+      // 切換到下一個節點
       currentNodeKey = nextMap[label] || "start";
-
-      // 4. 渲染下一步 quick replies
       renderQuickReplies();
     }
 
-    // 啟動引導
+    // ─── 手動文字送出 ─────────────────────────────────────
+    sendBtn.onclick = async () => {
+      const text = userInput.value.trim();
+      if (!text) return;
+      appendMessage(text, "user");
+      userInput.value = "";
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ input: text })
+        });
+        const ai = await res.text();
+        appendMessage(ai, "ai");
+      } catch {
+        appendMessage("⚠️ 連線錯誤", "ai");
+      }
+    };
+    clearBtn.onclick = () => userInput.value = "";
+    speakBtn.onclick = () => {
+      const msgs = chatArea.querySelectorAll(".message.ai");
+      if (!msgs.length) return;
+      speak(msgs[msgs.length-1].textContent);
+    };
+
+    // ─── 啟動／重置引導模式 ─────────────────────────────────
     function startGuided() {
-      if (recognition && recognition.abort) recognition.abort();
+      if (recognition && isRecognizing) recognition.stop();
       chatArea.innerHTML = "";
       currentNodeKey = "start";
       appendMessage("🚦 歡迎使用運動科學 AI 引導器，請從下方選項開始", "ai");
@@ -219,9 +275,6 @@
     }
     guideBtn.onclick = startGuided;
     window.addEventListener("load", startGuided);
-
-    // 保留你原本的語音辨識、文字送出、朗讀邏輯...
-    // （略，請直接複製你現有的 setupRecognition、sendBtn.onclick、speakBtn.onclick 等程式碼）
 
   </script>
 </body>
