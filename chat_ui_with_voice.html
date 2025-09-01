@@ -64,7 +64,7 @@
       <div class="flex flex-wrap items-center gap-4 pt-2 border-t">
         <label class="text-sm whitespace-nowrap">AI 回覆朗讀：</label>
         <!-- 加入 relative wrapper -->
-        <div class="relative">
+        <div class="relative flex-shrink-0 w-40 z-10">
           <select
             id="voiceSelect"
             class="appearance-none border border-gray-300 bg-white text-gray-800 
@@ -80,7 +80,7 @@
             </svg>
           </div>
         </div>
-        
+
         <label class="text-sm">語速</label>
         <input id="rate" type="range" min="0.5" max="2" step="0.1" value="1" class="w-24"/>
 
