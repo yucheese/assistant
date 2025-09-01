@@ -78,7 +78,7 @@
   const API_URL  = "https://premium-intimate-stallion.ngrok-free.app";
   const CHAT_URL = `${API_URL}/chat`;
 
-  // 1) 流程節點 + 是否為終點
+  // 1) 流程節點設定 + 是否為終點
   const flow = {
     start:           { quickReplies: ["初級熱身流程","體重管理建議","肌力訓練計畫"], isTerminal: false },
     warmup:          { quickReplies: ["動態伸展","輕量有氧"],             isTerminal: false },
@@ -94,19 +94,12 @@
     strength_core:   { quickReplies: [],                               isTerminal: true  }
   };
 
-  // 2) 下一步節點對應
+  // 2) 下一個節點對應
   const nextMap = {
-    "初級熱身流程": "warmup",
-    "動態伸展":      "warmup_dynamic",
-    "輕量有氧":      "warmup_cardio",
-    "體重管理建議":  "weight",
-    "減脂":          "weight_loss",
-    "增肌":          "weight_gain",
-    "維持體重":      "weight_maintain",
-    "肌力訓練計畫":  "strength",
-    "胸部":          "strength_chest",
-    "腿部":          "strength_leg",
-    "核心":          "strength_core"
+    "初級熱身流程":"warmup",  "動態伸展":"warmup_dynamic", "輕量有氧":"warmup_cardio",
+    "體重管理建議":"weight",  "減脂":"weight_loss",         "增肌":"weight_gain",  
+    "維持體重":"weight_maintain","肌力訓練計畫":"strength",
+    "胸部":"strength_chest",   "腿部":"strength_leg",      "核心":"strength_core"
   };
 
   // 3) 節點提示文字
@@ -115,17 +108,6 @@
     warmup:   "您想要哪種類型的熱身？",
     weight:   "請問您的體重管理目標？",
     strength: "請選擇想進行的肌力訓練部位："
-  };
-
-  // 4) 靜態終點回覆
-  const staticResponses = {
-    warmup_dynamic: `動態伸展推薦：
-• 膝蓋抬高 (30 秒)
-• 臀部開合 (30 秒)
-• 臂圈 (20 下)`,
-    warmup_cardio: `輕量有氧推薦：
-• 原地慢跑 (2 分鐘)
-• 跳繩 (1 分鐘)`
   };
 
   let currentNodeKey = "start";
@@ -142,7 +124,7 @@
   const pitchSlider = document.getElementById("pitch");
   const userInput   = document.getElementById("userInput");
 
-  // ─── 對話泡泡函式 ───────────────────────────────────────
+  // ─── 在 chatArea 增加訊息泡泡 ───────────────────────────
   function appendMessage(text, sender="ai") {
     const box = document.createElement("div");
     box.className = `message ${sender} p-2 rounded whitespace-pre-wrap ${
@@ -154,14 +136,12 @@
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
-  // ─── 顯示按鈕函式 ─────────────────────────────────────
+  // ─── 顯示 Quick Reply 按鈕 ──────────────────────────────
   function renderQuickReplies() {
     const old = chatArea.querySelector(".quick-replies");
     if (old) old.remove();
-
     const replies = flow[currentNodeKey].quickReplies;
     if (!replies.length) return;
-
     const ctr = document.createElement("div");
     ctr.className = "quick-replies flex gap-2 flex-wrap mt-2";
     replies.forEach(label => {
@@ -175,36 +155,28 @@
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
-  // ─── 重置到起始節點 ────────────────────────────────────
-  function resetToStart() {
-    path = [];
-    currentNodeKey = "start";
-    appendMessage(textMap.start, "ai");
-    renderQuickReplies();
-  }
-
   // ─── 處理選擇邏輯 ─────────────────────────────────────
   async function handleSelect(label) {
+    // 顯示使用者選擇
     appendMessage(label, "user");
     path.push(label);
+
+    // 切換節點
     currentNodeKey = nextMap[label] || "start";
+    const node = flow[currentNodeKey];
 
-    // A. 如果 staticResponses 存在，就直接顯示並 reset
-    if (staticResponses[currentNodeKey]) {
-      appendMessage(staticResponses[currentNodeKey], "ai");
-      return resetToStart();
+    // 如仍有 quickReplies → 本地引導，不呼叫模型
+    if (node.quickReplies.length > 0) {
+      const tip = textMap[currentNodeKey];
+      if (tip) appendMessage(tip, "ai");
+      renderQuickReplies();
+      return;
     }
 
-    // B. 還有下一層 quickReplies，就本地引導
-    if (flow[currentNodeKey].quickReplies.length) {
-      const txt = textMap[currentNodeKey] || "";
-      if (txt) appendMessage(txt, "ai");
-      return renderQuickReplies();
-    }
-
-    // C. 流程終點：組 prompt 丟給模型
-    appendMessage("生成中…請稍候", "ai");
+    // 流程終點 → 組 prompt 丟模型
     const prompt = path.join("，");
+    appendMessage("生成中…請稍候", "ai");
+
     let reply;
     try {
       const res = await fetch(CHAT_URL, {
@@ -213,18 +185,16 @@
         body: JSON.stringify({ input: prompt })
       });
       reply = await res.text();
-    } catch {
+    } catch (e) {
+      console.error(e);
       reply = "⚠️ 無法取得 AI 回應";
     }
-    appendMessage(reply, "ai");
 
-    // 只有標記為終點時才重置
-    if (flow[currentNodeKey].isTerminal) {
-      resetToStart();
-    }
+    appendMessage(reply, "ai");
+    // **不再自動重置**，等待使用者再次點「引導流程」按鈕才重啟
   }
 
-  // ─── 綁定傳送、清除、朗讀按鈕 ─────────────────────────
+  // ─── 綁定手動文字送出、清除、朗讀 ─────────────────────
   sendBtn.onclick = async () => {
     const text = userInput.value.trim();
     if (!text) return;
@@ -248,23 +218,27 @@
   speakBtn.onclick = () => {
     const msgs = chatArea.querySelectorAll(".message.ai");
     if (!msgs.length) return;
-    const last = msgs[msgs.length - 1].textContent;
-    const utter = new SpeechSynthesisUtterance(last);
+    const last = msgs[msgs.length-1].textContent;
+    const u = new SpeechSynthesisUtterance(last);
     const v = speechSynthesis.getVoices()[voiceSelect.value];
-    if (v) utter.voice = v;
-    utter.rate  = +rateSlider.value;
-    utter.pitch = +pitchSlider.value;
-    utter.lang  = "zh-TW";
+    if (v) u.voice = v;
+    u.rate  = +rateSlider.value;
+    u.pitch = +pitchSlider.value;
+    u.lang  = "zh-TW";
     speechSynthesis.cancel();
-    speechSynthesis.speak(utter);
+    speechSynthesis.speak(u);
   };
 
-  // ─── 引導按鈕：重置並啟動流程 ─────────────────────────
-  guideBtn.onclick = resetToStart;
-
-  // ─── 首次載入啟動 ─────────────────────────────────────
-  resetToStart();
+  // ─── 引導流程按鈕：清空並開始 ─────────────────────────
+  guideBtn.onclick = () => {
+    chatArea.innerHTML = "";
+    path = [];
+    currentNodeKey = "start";
+    appendMessage(textMap.start, "ai");
+    renderQuickReplies();
+  };
 </script>
+
 
 </body>
 </html>
