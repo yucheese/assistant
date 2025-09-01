@@ -87,35 +87,32 @@
   </div>
 
   <script>
+  document.addEventListener("DOMContentLoaded", () => {
   // ─── 配置區 ─────────────────────────────────────────
   const API_URL  = "https://premium-intimate-stallion.ngrok-free.app";
   const CHAT_URL = `${API_URL}/chat`;
 
-  // 1) 流程節點設定 + 是否為終點
   const flow = {
-    start:           { quickReplies: ["初級熱身流程","體重管理建議","肌力訓練計畫"], isTerminal: false },
-    warmup:          { quickReplies: ["動態伸展","輕量有氧"],             isTerminal: false },
-    warmup_dynamic:  { quickReplies: [],                               isTerminal: true  },
-    warmup_cardio:   { quickReplies: [],                               isTerminal: true  },
-    weight:          { quickReplies: ["減脂","增肌","維持體重"],           isTerminal: false },
-    weight_loss:     { quickReplies: [],                               isTerminal: true  },
-    weight_gain:     { quickReplies: [],                               isTerminal: true  },
-    weight_maintain: { quickReplies: [],                               isTerminal: true  },
-    strength:        { quickReplies: ["胸部","腿部","核心"],             isTerminal: false },
-    strength_chest:  { quickReplies: [],                               isTerminal: true  },
-    strength_leg:    { quickReplies: [],                               isTerminal: true  },
-    strength_core:   { quickReplies: [],                               isTerminal: true  }
+    start:           { quickReplies:["初級熱身流程","體重管理建議","肌力訓練計畫"], isTerminal:false },
+    warmup:          { quickReplies:["動態伸展","輕量有氧"],                  isTerminal:false },
+    warmup_dynamic:  { quickReplies:[],                                   isTerminal:true  },
+    warmup_cardio:   { quickReplies:[],                                   isTerminal:true  },
+    weight:          { quickReplies:["減脂","增肌","維持體重"],               isTerminal:false },
+    weight_loss:     { quickReplies:[],                                   isTerminal:true  },
+    weight_gain:     { quickReplies:[],                                   isTerminal:true  },
+    weight_maintain: { quickReplies:[],                                   isTerminal:true  },
+    strength:        { quickReplies:["胸部","腿部","核心"],                   isTerminal:false },
+    strength_chest:  { quickReplies:[],                                   isTerminal:true  },
+    strength_leg:    { quickReplies:[],                                   isTerminal:true  },
+    strength_core:   { quickReplies:[],                                   isTerminal:true  }
   };
 
-  // 2) 下一個節點對應
   const nextMap = {
-    "初級熱身流程":"warmup",  "動態伸展":"warmup_dynamic", "輕量有氧":"warmup_cardio",
-    "體重管理建議":"weight",  "減脂":"weight_loss",         "增肌":"weight_gain",  
-    "維持體重":"weight_maintain","肌力訓練計畫":"strength",
-    "胸部":"strength_chest",   "腿部":"strength_leg",      "核心":"strength_core"
+    "初級熱身流程":"warmup","動態伸展":"warmup_dynamic","輕量有氧":"warmup_cardio",
+    "體重管理建議":"weight","減脂":"weight_loss","增肌":"weight_gain","維持體重":"weight_maintain",
+    "肌力訓練計畫":"strength","胸部":"strength_chest","腿部":"strength_leg","核心":"strength_core"
   };
 
-  // 3) 節點提示文字
   const textMap = {
     start:    "歡迎使用運動科學 AI 引導器，請從下方選項開始",
     warmup:   "您想要哪種類型的熱身？",
@@ -129,95 +126,94 @@
   // ─── 取得 DOM 元素 ────────────────────────────────────
   const chatArea    = document.getElementById("chatArea");
   const guideBtn    = document.getElementById("guideBtn");
+  const startBtn    = document.getElementById("startBtn");
+  const stopBtn     = document.getElementById("stopBtn");
+  const statusEl    = document.getElementById("status");
+  const userInput   = document.getElementById("userInput");
   const sendBtn     = document.getElementById("sendBtn");
   const clearBtn    = document.getElementById("clearBtn");
   const speakBtn    = document.getElementById("speakBtn");
   const voiceSelect = document.getElementById("voiceSelect");
   const rateSlider  = document.getElementById("rate");
   const pitchSlider = document.getElementById("pitch");
-  const userInput   = document.getElementById("userInput");
 
-  // 填充可用 TTS 聲音
-    function populateVoices() {
-      voices = synth.getVoices();
-      voiceSelect.innerHTML = "";
-      voices.forEach((v, i) => {
-        const opt = document.createElement("option");
-        opt.value = i;
-        opt.textContent = `${v.name} (${v.lang})`;
-        voiceSelect.appendChild(opt);
-      });
-    }
-    populateVoices();
-    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = populateVoices;
+  // ─── TTS 初始化 ───────────────────────────────────────
+  const synth = window.speechSynthesis;
+  function populateVoices() {
+    const voices = synth.getVoices();
+    voiceSelect.innerHTML = "";
+    voices.forEach((v, i) => {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = `${v.name} (${v.lang})`;
+      voiceSelect.appendChild(opt);
+    });
+  }
+  populateVoices();
+  if (synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = populateVoices;
+  }
 
-    // 語音朗讀
-    function speak(text) {
-      const utter = new SpeechSynthesisUtterance(text);
-      const sel = voices[voiceSelect.value];
-      if (sel) utter.voice = sel;
-      utter.rate  = parseFloat(rateSlider.value || 1);
-      utter.pitch = parseFloat(pitchSlider.value || 1);
-      utter.lang  = "zh-TW";
-      synth.cancel();
-      synth.speak(utter);
+  function speak(text) {
+    const utter = new SpeechSynthesisUtterance(text);
+    const v = synth.getVoices()[voiceSelect.value];
+    if (v) utter.voice = v;
+    utter.rate  = +rateSlider.value;
+    utter.pitch = +pitchSlider.value;
+    utter.lang  = "zh-TW";
+    synth.cancel();
+    synth.speak(utter);
+  }
+
+  // ─── 語音辨識初始化 ───────────────────────────────────
+  let recognition = null;
+  function setupRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      alert("瀏覽器不支援語音辨識");
+      startBtn.disabled = true;
+      return;
     }
-  // ─── 在 chatArea 增加訊息泡泡 ───────────────────────────
+    recognition = new SR();
+    recognition.lang = "zh-TW";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+
+    recognition.onstart = () => {
+      statusEl.textContent = "🎤 正在辨識…";
+      startBtn.disabled = true;
+      stopBtn.disabled  = false;
+    };
+    recognition.onerror = e => {
+      statusEl.textContent = "❌ " + e.error;
+    };
+    recognition.onend = () => {
+      statusEl.textContent = "🛑 已停止";
+      startBtn.disabled = false;
+      stopBtn.disabled  = true;
+    };
+    recognition.onresult = event => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          userInput.value += event.results[i][0].transcript;
+        }
+      }
+    };
+  }
+  setupRecognition();
+  startBtn.onclick = () => recognition.start();
+  stopBtn.onclick  = () => recognition.stop();
+
+  // ─── 對話泡泡及按鈕渲染 ─────────────────────────────────
   function appendMessage(text, sender="ai") {
     const box = document.createElement("div");
     box.className = `message ${sender} p-2 rounded whitespace-pre-wrap ${
-      sender==="user"
-        ? "bg-blue-100 text-right self-end"
-        : "bg-gray-100 text-left self-start"}`;
+      sender==="user" ? "bg-blue-100 text-right self-end" : "bg-gray-100 text-left self-start"}`;
     box.textContent = text;
-    chatArea.append(box);
+    chatArea.appendChild(box);
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
-
-  // 語音辨識設定
-    function setupRecognition() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) {
-        alert("瀏覽器不支援語音辨識");
-        startBtn.disabled = true;
-        return;
-      }
-      recognition = new SR();
-      recognition.lang = "zh-TW";
-      recognition.interimResults = true;
-      recognition.continuous = true;
-
-      recognition.onstart = () => {
-        isRecognizing = true;
-        statusEl.textContent = "🎤 正在辨識...";
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-      };
-      recognition.onerror = (e) => {
-        statusEl.textContent = "錯誤：" + e.error;
-      };
-      recognition.onend = () => {
-        isRecognizing = false;
-        statusEl.textContent = "🛑 已停止辨識";
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
-      };
-      recognition.onresult = (event) => {
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            userInput.value += event.results[i][0].transcript;
-          }
-        }
-      };
-    }
-    setupRecognition();
-
-    startBtn.onclick = () => recognition.start();
-    stopBtn .onclick = () => recognition.stop();
-    clearBtn.onclick = () => userInput.value = "";
-    
-  // ─── 顯示 Quick Reply 按鈕 ──────────────────────────────
   function renderQuickReplies() {
     const old = chatArea.querySelector(".quick-replies");
     if (old) old.remove();
@@ -230,63 +226,63 @@
       btn.textContent = label;
       btn.className = "px-3 py-1 bg-blue-500 text-white rounded";
       btn.onclick = () => handleSelect(label);
-      ctr.append(btn);
+      ctr.appendChild(btn);
     });
-    chatArea.append(ctr);
+    chatArea.appendChild(ctr);
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
-  // ─── 處理選擇邏輯 ─────────────────────────────────────
+  function resetToStart() {
+    path = [];
+    currentNodeKey = "start";
+    chatArea.innerHTML = "";
+    appendMessage(textMap.start, "ai");
+    renderQuickReplies();
+  }
+
+  // ─── 處理 Quick Reply 點擊 ─────────────────────────────
   async function handleSelect(label) {
-    // 顯示使用者選擇
     appendMessage(label, "user");
     path.push(label);
-
-    // 切換節點
     currentNodeKey = nextMap[label] || "start";
     const node = flow[currentNodeKey];
 
-    // 如仍有 quickReplies → 本地引導，不呼叫模型
+    // 本地引導
     if (node.quickReplies.length > 0) {
       const tip = textMap[currentNodeKey];
       if (tip) appendMessage(tip, "ai");
-      renderQuickReplies();
-      return;
+      return renderQuickReplies();
     }
 
-    // 流程終點 → 組 prompt 丟模型
-    const prompt = path.join("，");
+    // 終點 → 呼叫模型
     appendMessage("生成中…請稍候", "ai");
-
     let reply;
     try {
       const res = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: prompt })
+        body: JSON.stringify({ input: path.join("，") })
       });
       reply = await res.text();
-    } catch (e) {
-      console.error(e);
+    } catch {
       reply = "⚠️ 無法取得 AI 回應";
     }
-
     appendMessage(reply, "ai");
-    // **不再自動重置**，等待使用者再次點「引導流程」按鈕才重啟
+    // 不自動重置，要用戶再按「引導流程」
   }
 
-  // ─── 綁定手動文字送出、清除、朗讀 ─────────────────────
+  // ─── 手動文字送出 & 清除 & 朗讀 ─────────────────────────
   sendBtn.onclick = async () => {
-    const text = userInput.value.trim();
-    if (!text) return;
-    appendMessage(text, "user");
+    const txt = userInput.value.trim();
+    if (!txt) return;
+    appendMessage(txt, "user");
     userInput.value = "";
     let ai;
     try {
       const res = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: text })
+        body: JSON.stringify({ input: txt })
       });
       ai = await res.text();
     } catch {
@@ -294,31 +290,20 @@
     }
     appendMessage(ai, "ai");
   };
-
   clearBtn.onclick = () => userInput.value = "";
   speakBtn.onclick = () => {
     const msgs = chatArea.querySelectorAll(".message.ai");
     if (!msgs.length) return;
-    const last = msgs[msgs.length-1].textContent;
-    const u = new SpeechSynthesisUtterance(last);
-    const v = speechSynthesis.getVoices()[voiceSelect.value];
-    if (v) u.voice = v;
-    u.rate  = +rateSlider.value;
-    u.pitch = +pitchSlider.value;
-    u.lang  = "zh-TW";
-    speechSynthesis.cancel();
-    speechSynthesis.speak(u);
+    speak(msgs[msgs.length - 1].textContent);
   };
 
-  // ─── 引導流程按鈕：清空並開始 ─────────────────────────
-  guideBtn.onclick = () => {
-    chatArea.innerHTML = "";
-    path = [];
-    currentNodeKey = "start";
-    appendMessage(textMap.start, "ai");
-    renderQuickReplies();
-  };
+  // ─── 引導流程按鈕 ─────────────────────────────────────
+  guideBtn.onclick = resetToStart;
+
+  // 第一次不自動啟動，下拉選擇要用戶自己按「引導流程」
+  });
 </script>
+
 
 </body>
 </html>
