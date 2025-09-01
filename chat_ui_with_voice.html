@@ -174,6 +174,49 @@
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
+
+  // 語音辨識設定
+    function setupRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        alert("瀏覽器不支援語音辨識");
+        startBtn.disabled = true;
+        return;
+      }
+      recognition = new SR();
+      recognition.lang = "zh-TW";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+
+      recognition.onstart = () => {
+        isRecognizing = true;
+        statusEl.textContent = "🎤 正在辨識...";
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      };
+      recognition.onerror = (e) => {
+        statusEl.textContent = "錯誤：" + e.error;
+      };
+      recognition.onend = () => {
+        isRecognizing = false;
+        statusEl.textContent = "🛑 已停止辨識";
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      };
+      recognition.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            userInput.value += event.results[i][0].transcript;
+          }
+        }
+      };
+    }
+    setupRecognition();
+
+    startBtn.onclick = () => recognition.start();
+    stopBtn .onclick = () => recognition.stop();
+    clearBtn.onclick = () => userInput.value = "";
+    
   // ─── 顯示 Quick Reply 按鈕 ──────────────────────────────
   function renderQuickReplies() {
     const old = chatArea.querySelector(".quick-replies");
