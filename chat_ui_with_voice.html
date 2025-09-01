@@ -137,6 +137,31 @@
   const pitchSlider = document.getElementById("pitch");
   const userInput   = document.getElementById("userInput");
 
+  // 填充可用 TTS 聲音
+    function populateVoices() {
+      voices = synth.getVoices();
+      voiceSelect.innerHTML = "";
+      voices.forEach((v, i) => {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = `${v.name} (${v.lang})`;
+        voiceSelect.appendChild(opt);
+      });
+    }
+    populateVoices();
+    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = populateVoices;
+
+    // 語音朗讀
+    function speak(text) {
+      const utter = new SpeechSynthesisUtterance(text);
+      const sel = voices[voiceSelect.value];
+      if (sel) utter.voice = sel;
+      utter.rate  = parseFloat(rateSlider.value || 1);
+      utter.pitch = parseFloat(pitchSlider.value || 1);
+      utter.lang  = "zh-TW";
+      synth.cancel();
+      synth.speak(utter);
+    }
   // ─── 在 chatArea 增加訊息泡泡 ───────────────────────────
   function appendMessage(text, sender="ai") {
     const box = document.createElement("div");
@@ -251,7 +276,6 @@
     renderQuickReplies();
   };
 </script>
-
 
 </body>
 </html>
