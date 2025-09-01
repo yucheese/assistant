@@ -206,13 +206,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ─── 對話泡泡及按鈕渲染 ─────────────────────────────────
   function appendMessage(text, sender="ai") {
-    const box = document.createElement("div");
-    box.className = `message ${sender} p-2 rounded whitespace-pre-wrap ${
-      sender==="user" ? "bg-blue-100 text-right self-end" : "bg-gray-100 text-left self-start"}`;
-    box.textContent = text;
-    chatArea.appendChild(box);
-    chatArea.scrollTop = chatArea.scrollHeight;
-  }
+  const box = document.createElement("div");
+  box.className = `message ${sender} p-2 rounded whitespace-pre-wrap ${
+    sender==="user" 
+      ? "bg-blue-100 text-right self-end" 
+      : "bg-gray-100 text-left self-start"}`;
+  box.textContent = text;
+  chatArea.append(box);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return box;       // ← 回傳這個元素
+}
 
   function renderQuickReplies() {
     const old = chatArea.querySelector(".quick-replies");
@@ -254,21 +257,33 @@ document.addEventListener("DOMContentLoaded", () => {
       return renderQuickReplies();
     }
 
-    // 終點 → 呼叫模型
-    appendMessage("生成中…請稍候", "ai");
+     // 到終點要呼叫模型
+    const prompt = path.join("，");
+
+    // 1) 顯示 loading 泡泡，並保存元素
+    const loadingBox = appendMessage("生成中…請稍候", "ai");
+
+    // 2) 發送 request
     let reply;
     try {
       const res = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: path.join("，") })
+        body: JSON.stringify({ input: prompt })
       });
       reply = await res.text();
-    } catch {
+    } catch (e) {
+      console.error(e);
       reply = "⚠️ 無法取得 AI 回應";
     }
+
+    // 3) 拿到回覆，就移除 loading
+    loadingBox.remove();
+
+    // 4) 再把真實回覆顯示出來
     appendMessage(reply, "ai");
-    // 不自動重置，要用戶再按「引導流程」
+
+    // 之後不自動重置，等用戶再按一次「引導流程」
   }
 
   // ─── 手動文字送出 & 清除 & 朗讀 ─────────────────────────
