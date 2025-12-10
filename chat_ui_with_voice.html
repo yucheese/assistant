@@ -2,323 +2,444 @@
 <html lang="zh-TW">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
   <title>Gait AI Assistant</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; }
+    /* 隱藏捲軸但保持功能 */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* 訊息進場動畫 */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .message-anim { animation: slideIn 0.3s ease-out forwards; }
+
+    /* 錄音時的波紋效果 */
+    .pulse-ring {
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      animation: pulse-red 1.5s infinite cubic-bezier(0.66, 0, 0, 1);
+    }
+    @keyframes pulse-red {
+      to { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    }
+  </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-slate-100 h-screen flex flex-col overflow-hidden text-slate-800">
 
-  <div class="flex flex-col h-screen max-w-2xl mx-auto">
-
-    <!-- 1. Header + 引導按鈕 -->
-    <header class="flex-none bg-white border-b px-6 py-4 flex items-center justify-between">
-      <h1 class="text-xl font-semibold">Gait AI助理</h1>
-      <button id="guideBtn"
-              class="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500">
-         引導流程
-      </button>
-    </header>
-
-    <!-- 2. 可捲動對話區 -->
-    <main id="chatArea"
-          class="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50"></main>
-
-    <!-- 3. 底部：語音辨識 + 手動輸入區 -->
-    <footer class="flex-none bg-white border-t px-6 py-4">
-
-      <div class="flex gap-2 mb-3">
-        <button id="startBtn"
-                class="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg">
-          🎤 開始辨識
+  <header class="flex-none bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between z-20 shadow-sm">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">G</div>
+      <h1 class="text-lg font-bold text-slate-700">Gait AI</h1>
+    </div>
+    <div class="flex gap-2">
+        <button id="guideBtn" class="text-sm px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-full font-medium hover:bg-indigo-100 transition">
+            ✨ 引導模式
         </button>
-        <button id="stopBtn"
-                class="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-red-500 text-white rounded-lg disabled:opacity-50"
-                disabled>
-          🛑 停止
-        </button>
-        <span id="status" class="self-center text-sm text-gray-500">狀態：未啟動</span>
-      </div>
-
-      <textarea id="userInput"
-                rows="2"
-                placeholder="輸入文字或按 🎤 語音輸入…"
-                class="w-full resize-none border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-3"></textarea>
-
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex gap-2">
-          <button id="sendBtn"
-                  class="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg">
-            📨 傳送
-          </button>
-          <button id="clearBtn"
-                  class="flex items-center gap-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg">
-            🧹 清除
-          </button>
-        </div>
-        <button id="speakBtn"
-                class="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">
-          🔈 朗讀
-        </button>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-4 pt-2 border-t">
-        <label class="text-sm whitespace-nowrap">AI 回覆朗讀：</label>
-        <!-- 加入 relative wrapper -->
-        <div class="relative flex-shrink-0 w-40 z-10">
-          <select id="voiceSelect" class="block appearance-none w-full bg-white border border-gray-300 text-gray-800 py-2 px-3 pr-8 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
-        <!-- JS 動態填入 <option> -->
-      </select>
-          <!-- 自訂箭頭 -->
-          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        <button id="toggleSettings" class="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-          </div>
+        </button>
+    </div>
+  </header>
+
+  <div id="settingsPanel" class="hidden bg-white border-b border-slate-200 p-4 shadow-lg absolute top-[60px] left-0 w-full z-10 transition-all">
+    <div class="max-w-2xl mx-auto space-y-4">
+        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">語音設定</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="text-xs text-slate-500 mb-1 block">語音角色</label>
+                <select id="voiceSelect" class="w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-slate-50"></select>
+            </div>
+            <div>
+                <label class="text-xs text-slate-500 mb-1 block">語速: <span id="rateVal">1.0</span></label>
+                <input id="rate" type="range" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"/>
+            </div>
+            <div>
+                <label class="text-xs text-slate-500 mb-1 block">音調: <span id="pitchVal">1.0</span></label>
+                <input id="pitch" type="range" min="0" max="2" step="0.1" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"/>
+            </div>
         </div>
-
-        <label class="text-sm">語速</label>
-        <input id="rate" type="range" min="0.5" max="2" step="0.1" value="1" class="w-24"/>
-
-        <label class="text-sm">音調</label>
-        <input id="pitch" type="range" min="0" max="2" step="0.1" value="1" class="w-24"/>
-      </div>
-
-    </footer>
+        <div class="flex justify-end pt-2 border-t mt-2">
+             <button id="clearBtn" class="text-xs text-red-500 hover:bg-red-50 px-3 py-2 rounded flex items-center gap-1 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                清除對話紀錄
+             </button>
+        </div>
+    </div>
   </div>
 
+  <main id="chatArea" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth max-w-3xl mx-auto w-full pb-24">
+    </main>
+
+  <footer class="flex-none bg-white border-t border-slate-200 p-3 sm:p-4 fixed bottom-0 w-full z-20">
+    <div class="max-w-3xl mx-auto flex flex-col gap-2">
+        
+        <div id="status" class="text-xs text-slate-400 text-center h-4 transition-all">準備就緒</div>
+
+        <div class="flex items-end gap-2 relative">
+            <button id="micBtn" class="flex-none w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                <svg id="micIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+            </button>
+
+            <div class="flex-1 relative">
+                <textarea id="userInput" rows="1" 
+                    class="w-full bg-slate-100 border-0 rounded-2xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:bg-white resize-none text-slate-700 max-h-32 shadow-inner"
+                    placeholder="輸入訊息..."></textarea>
+            </div>
+
+            <button id="sendBtn" class="flex-none w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md transition transform active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                </svg>
+            </button>
+            
+            <button id="speakBtn" class="absolute -top-10 right-0 text-xs bg-white border border-slate-200 shadow-sm px-2 py-1 rounded text-slate-500 hover:text-indigo-600 hidden">
+                🔊 重播
+            </button>
+        </div>
+    </div>
+  </footer>
+
   <script>
-document.addEventListener("DOMContentLoaded", () => {
-  // ─── 配置區 ─────────────────────────────────────────
-  const API_URL  = "https://premium-intimate-stallion.ngrok-free.app";
-  const CHAT_URL = `${API_URL}/chat`;
+    document.addEventListener("DOMContentLoaded", () => {
+      const API_URL  = "https://premium-intimate-stallion.ngrok-free.app"; 
+      const CHAT_URL = `${API_URL}/chat`;
 
-  const flow = {
-    start:           { quickReplies:["初級熱身流程","體重管理建議","肌力訓練計畫"], isTerminal:false },
-    warmup:          { quickReplies:["動態伸展","輕量有氧"],                  isTerminal:false },
-    warmup_dynamic:  { quickReplies:[],                                   isTerminal:true  },
-    warmup_cardio:   { quickReplies:[],                                   isTerminal:true  },
-    weight:          { quickReplies:["減脂","增肌","維持體重"],               isTerminal:false },
-    weight_loss:     { quickReplies:[],                                   isTerminal:true  },
-    weight_gain:     { quickReplies:[],                                   isTerminal:true  },
-    weight_maintain: { quickReplies:[],                                   isTerminal:true  },
-    strength:        { quickReplies:["胸部","腿部","核心"],                   isTerminal:false },
-    strength_chest:  { quickReplies:[],                                   isTerminal:true  },
-    strength_leg:    { quickReplies:[],                                   isTerminal:true  },
-    strength_core:   { quickReplies:[],                                   isTerminal:true  }
-  };
+      // ─── 狀態與邏輯 ───
+      const flow = {
+        start:           { quickReplies:["初級熱身流程","體重管理建議","肌力訓練計畫"], isTerminal:false },
+        warmup:          { quickReplies:["動態伸展","輕量有氧"],                   isTerminal:false },
+        warmup_dynamic:  { quickReplies:[],                                       isTerminal:true  },
+        warmup_cardio:   { quickReplies:[],                                       isTerminal:true  },
+        weight:          { quickReplies:["減脂","增肌","維持體重"],                isTerminal:false },
+        weight_loss:     { quickReplies:[],                                       isTerminal:true  },
+        weight_gain:     { quickReplies:[],                                       isTerminal:true  },
+        weight_maintain: { quickReplies:[],                                       isTerminal:true  },
+        strength:        { quickReplies:["胸部","腿部","核心"],                    isTerminal:false },
+        strength_chest:  { quickReplies:[],                                       isTerminal:true  },
+        strength_leg:    { quickReplies:[],                                       isTerminal:true  },
+        strength_core:   { quickReplies:[],                                       isTerminal:true  }
+      };
 
-  const nextMap = {
-    "初級熱身流程":"warmup","動態伸展":"warmup_dynamic","輕量有氧":"warmup_cardio",
-    "體重管理建議":"weight","減脂":"weight_loss","增肌":"weight_gain","維持體重":"weight_maintain",
-    "肌力訓練計畫":"strength","胸部":"strength_chest","腿部":"strength_leg","核心":"strength_core"
-  };
+      const nextMap = {
+        "初級熱身流程":"warmup","動態伸展":"warmup_dynamic","輕量有氧":"warmup_cardio",
+        "體重管理建議":"weight","減脂":"weight_loss","增肌":"weight_gain","維持體重":"weight_maintain",
+        "肌力訓練計畫":"strength","胸部":"strength_chest","腿部":"strength_leg","核心":"strength_core"
+      };
 
-  const textMap = {
-    start:    "歡迎使用運動科學 AI 助理，請從下方選項開始",
-    warmup:   "您想要哪種類型的熱身？",
-    weight:   "請問您的體重管理目標？",
-    strength: "請選擇想進行的肌力訓練部位："
-  };
+      const textMap = {
+        start:    "👋 歡迎使用運動科學 AI 助理，請選擇下方的項目開始：",
+        warmup:   "好的，您想要進行哪種類型的熱身？",
+        weight:   "了解，請問您的體重管理目標是什麼？",
+        strength: "沒問題，請選擇您想強化的肌群部位："
+      };
 
-  let currentNodeKey = "start";
-  let path = [];
+      let currentNodeKey = "start";
+      let path = [];
+      let isRecording = false;
 
-  // ─── 取得 DOM 元素 ────────────────────────────────────
-  const chatArea    = document.getElementById("chatArea");
-  const guideBtn    = document.getElementById("guideBtn");
-  const startBtn    = document.getElementById("startBtn");
-  const stopBtn     = document.getElementById("stopBtn");
-  const statusEl    = document.getElementById("status");
-  const userInput   = document.getElementById("userInput");
-  const sendBtn     = document.getElementById("sendBtn");
-  const clearBtn    = document.getElementById("clearBtn");
-  const speakBtn    = document.getElementById("speakBtn");
-  const voiceSelect = document.getElementById("voiceSelect");
-  const rateSlider  = document.getElementById("rate");
-  const pitchSlider = document.getElementById("pitch");
+      // ─── DOM 元素 ───
+      const chatArea    = document.getElementById("chatArea");
+      const guideBtn    = document.getElementById("guideBtn");
+      const micBtn      = document.getElementById("micBtn");
+      const micIcon     = document.getElementById("micIcon");
+      const statusEl    = document.getElementById("status");
+      const userInput   = document.getElementById("userInput");
+      const sendBtn     = document.getElementById("sendBtn");
+      const clearBtn    = document.getElementById("clearBtn");
+      const speakBtn    = document.getElementById("speakBtn");
+      const voiceSelect = document.getElementById("voiceSelect");
+      const rateSlider  = document.getElementById("rate");
+      const pitchSlider = document.getElementById("pitch");
+      const settingsPanel = document.getElementById("settingsPanel");
+      const toggleSettings = document.getElementById("toggleSettings");
+      
+      // UI: 自動調整 Textarea 高度
+      userInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+        if(this.value === '') this.style.height = 'auto';
+      });
 
-  // ─── TTS 初始化 ───────────────────────────────────────
-  const synth = window.speechSynthesis;
-  function populateVoices() {
-    const voices = synth.getVoices();
-    voiceSelect.innerHTML = "";
-    voices.forEach((v, i) => {
-      const opt = document.createElement("option");
-      opt.value = i;
-      opt.textContent = `${v.name} (${v.lang})`;
-      voiceSelect.appendChild(opt);
-    });
-  }
-  populateVoices();
-  if (synth.onvoiceschanged !== undefined) {
-    synth.onvoiceschanged = populateVoices;
-  }
+      // UI: Toggle Settings
+      toggleSettings.onclick = () => {
+        settingsPanel.classList.toggle('hidden');
+      };
+      
+      // UI: Slider Value Update
+      rateSlider.oninput = (e) => document.getElementById('rateVal').textContent = e.target.value;
+      pitchSlider.oninput = (e) => document.getElementById('pitchVal').textContent = e.target.value;
 
-  function speak(text) {
-    const utter = new SpeechSynthesisUtterance(text);
-    const v = synth.getVoices()[voiceSelect.value];
-    if (v) utter.voice = v;
-    utter.rate  = +rateSlider.value;
-    utter.pitch = +pitchSlider.value;
-    utter.lang  = "zh-TW";
-    synth.cancel();
-    synth.speak(utter);
-  }
-
-  // ─── 語音辨識初始化 ───────────────────────────────────
-  let recognition = null;
-  function setupRecognition() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      alert("瀏覽器不支援語音辨識");
-      startBtn.disabled = true;
-      return;
-    }
-    recognition = new SR();
-    recognition.lang = "zh-TW";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-
-    recognition.onstart = () => {
-      statusEl.textContent = "🎤 正在辨識…";
-      startBtn.disabled = true;
-      stopBtn.disabled  = false;
-    };
-    recognition.onerror = e => {
-      statusEl.textContent = "❌ " + e.error;
-    };
-    recognition.onend = () => {
-      statusEl.textContent = "🛑 已停止";
-      startBtn.disabled = false;
-      stopBtn.disabled  = true;
-    };
-    recognition.onresult = event => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          userInput.value += event.results[i][0].transcript;
-        }
+      // ─── TTS 設置 ───
+      const synth = window.speechSynthesis;
+      function populateVoices() {
+        const voices = synth.getVoices();
+        voiceSelect.innerHTML = "";
+        // 優先選擇 Google 中文 或 Microsoft 中文
+        voices.sort((a,b) => {
+            if(a.lang.includes('TW') || a.lang.includes('CN')) return -1;
+            return 1;
+        });
+        
+        voices.forEach((v, i) => {
+          const opt = document.createElement("option");
+          opt.value = i;
+          opt.textContent = `${v.name} (${v.lang})`;
+          if(v.default) opt.selected = true;
+          voiceSelect.appendChild(opt);
+        });
       }
-    };
-  }
-  setupRecognition();
-  startBtn.onclick = () => recognition.start();
-  stopBtn.onclick  = () => recognition.stop();
+      populateVoices();
+      if (synth.onvoiceschanged !== undefined) {
+        synth.onvoiceschanged = populateVoices;
+      }
 
-  // ─── 對話泡泡及按鈕渲染 ─────────────────────────────────
-  function appendMessage(text, sender="ai") {
-  const box = document.createElement("div");
-  box.className = `message ${sender} p-2 rounded whitespace-pre-wrap ${
-    sender==="user" 
-      ? "bg-blue-100 text-right self-end" 
-      : "bg-gray-100 text-left self-start"}`;
-  box.textContent = text;
-  chatArea.append(box);
-  chatArea.scrollTop = chatArea.scrollHeight;
-  return box;       // ← 回傳這個元素
-}
+      function speak(text) {
+        if(!text) return;
+        synth.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        const v = synth.getVoices()[voiceSelect.value];
+        if (v) utter.voice = v;
+        utter.rate  = +rateSlider.value;
+        utter.pitch = +pitchSlider.value;
+        utter.lang  = "zh-TW";
+        synth.speak(utter);
+      }
 
-  function renderQuickReplies() {
-    const old = chatArea.querySelector(".quick-replies");
-    if (old) old.remove();
-    const replies = flow[currentNodeKey].quickReplies;
-    if (!replies.length) return;
-    const ctr = document.createElement("div");
-    ctr.className = "quick-replies flex gap-2 flex-wrap mt-2";
-    replies.forEach(label => {
-      const btn = document.createElement("button");
-      btn.textContent = label;
-      btn.className = "px-3 py-1 bg-blue-500 text-white rounded";
-      btn.onclick = () => handleSelect(label);
-      ctr.appendChild(btn);
+      // ─── 語音辨識 ───
+      let recognition = null;
+      function setupRecognition() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+          statusEl.textContent = "⚠️ 您的瀏覽器不支援語音功能";
+          micBtn.disabled = true;
+          return;
+        }
+        recognition = new SR();
+        recognition.lang = "zh-TW";
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        recognition.onstart = () => {
+          isRecording = true;
+          statusEl.textContent = "🎤 聆聽中...";
+          statusEl.classList.add("text-red-500", "font-bold");
+          micBtn.classList.add("bg-red-500", "text-white", "pulse-ring");
+          micBtn.classList.remove("bg-slate-100", "text-slate-600");
+          // 換成停止圖示
+          micIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />';
+        };
+        
+        recognition.onerror = e => {
+          statusEl.textContent = "❌ " + e.error;
+          resetMicUI();
+        };
+        
+        recognition.onend = () => {
+          resetMicUI();
+        };
+        
+        recognition.onresult = event => {
+          let interimTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              userInput.value += transcript;
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+          // 簡單的視覺反饋，顯示正在輸入
+          if(interimTranscript) {
+             statusEl.textContent = `🎤 ${interimTranscript}`;
+          }
+        };
+      }
+
+      function resetMicUI() {
+          isRecording = false;
+          statusEl.textContent = "準備就緒";
+          statusEl.classList.remove("text-red-500", "font-bold");
+          micBtn.classList.remove("bg-red-500", "text-white", "pulse-ring");
+          micBtn.classList.add("bg-slate-100", "text-slate-600");
+          // 換回麥克風圖示
+          micIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />';
+      }
+
+      setupRecognition();
+      
+      // 整合的麥克風按鈕點擊事件
+      micBtn.onclick = () => {
+          if(!recognition) return;
+          if(isRecording) {
+              recognition.stop();
+          } else {
+              recognition.start();
+          }
+      };
+
+      // ─── 聊天介面渲染 ───
+      function appendMessage(text, sender="ai") {
+        const wrapper = document.createElement("div");
+        wrapper.className = `flex w-full mb-4 message-anim ${sender === "user" ? "justify-end" : "justify-start"}`;
+
+        const bubble = document.createElement("div");
+        bubble.className = `max-w-[85%] px-4 py-3 rounded-2xl text-base shadow-sm leading-relaxed whitespace-pre-wrap ${
+            sender === "user" 
+            ? "bg-indigo-600 text-white rounded-br-none" 
+            : "bg-white text-slate-700 border border-slate-100 rounded-bl-none"
+        }`;
+        
+        bubble.textContent = text;
+        wrapper.appendChild(bubble);
+        
+        // 如果是 AI，增加一個小頭像或標示 (選用)
+        if(sender === "ai") {
+            const avatar = document.createElement("div");
+            avatar.className = "w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2 text-indigo-600 font-bold text-xs flex-shrink-0 mt-1";
+            avatar.innerText = "AI";
+            wrapper.insertBefore(avatar, bubble);
+        }
+
+        chatArea.appendChild(wrapper);
+        chatArea.scrollTop = chatArea.scrollHeight;
+        
+        // 顯示重播按鈕
+        if(sender === "ai") {
+            speakBtn.classList.remove('hidden');
+            speakBtn.onclick = () => speak(text);
+        }
+        
+        return bubble;
+      }
+
+      function renderQuickReplies() {
+        const old = chatArea.querySelector(".quick-replies");
+        if (old) old.remove();
+        
+        const replies = flow[currentNodeKey].quickReplies;
+        if (!replies.length) return;
+
+        const container = document.createElement("div");
+        container.className = "quick-replies flex gap-2 flex-wrap mt-2 pl-10 mb-4 message-anim"; // pl-10 for align with AI text
+        
+        replies.forEach(label => {
+          const btn = document.createElement("button");
+          btn.textContent = label;
+          btn.className = "px-4 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-full hover:bg-indigo-50 hover:border-indigo-300 transition text-sm font-medium shadow-sm";
+          btn.onclick = () => handleSelect(label);
+          container.appendChild(btn);
+        });
+        
+        chatArea.appendChild(container);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function resetToStart() {
+        path = [];
+        currentNodeKey = "start";
+        chatArea.innerHTML = "";
+        appendMessage(textMap.start, "ai");
+        renderQuickReplies();
+        speak(textMap.start);
+      }
+
+      // ─── 核心互動邏輯 ───
+      async function handleSelect(label) {
+        appendMessage(label, "user");
+        
+        // 移除舊的 quick replies
+        const old = chatArea.querySelector(".quick-replies");
+        if(old) old.style.display = 'none';
+
+        path.push(label);
+        currentNodeKey = nextMap[label] || "start";
+        const node = flow[currentNodeKey];
+
+        // 本地引導
+        if (node.quickReplies.length > 0) {
+          const tip = textMap[currentNodeKey];
+          if (tip) {
+              setTimeout(() => {
+                  appendMessage(tip, "ai");
+                  speak(tip);
+                  renderQuickReplies();
+              }, 500); // 稍微延遲讓感覺更自然
+          }
+          return;
+        }
+
+        // 到終點：呼叫 API
+        const prompt = path.join("，");
+        const loadingBox = appendMessage("🤔 正在思考中...", "ai");
+        
+        let reply;
+        try {
+          const res = await fetch(CHAT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ input: prompt })
+          });
+          reply = await res.text();
+        } catch (e) {
+          console.error(e);
+          reply = "⚠️ 連線錯誤，請檢查後端服務。";
+        }
+        
+        loadingBox.parentElement.remove(); // 移除 Loading
+        appendMessage(reply, "ai");
+        speak(reply);
+      }
+
+      sendBtn.onclick = async () => {
+        const txt = userInput.value.trim();
+        if (!txt) return;
+        
+        appendMessage(txt, "user");
+        userInput.value = "";
+        userInput.style.height = "auto"; // reset height
+
+        // 移除 Quick Replies 避免混淆
+        const old = chatArea.querySelector(".quick-replies");
+        if(old) old.style.display = 'none';
+
+        const loadingBox = appendMessage("🤔...", "ai");
+
+        let ai;
+        try {
+          const res = await fetch(CHAT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ input: txt })
+          });
+          ai = await res.text();
+        } catch {
+          ai = "⚠️ 連線錯誤";
+        }
+        
+        loadingBox.parentElement.remove();
+        appendMessage(ai, "ai");
+        speak(ai);
+      };
+
+      clearBtn.onclick = () => {
+          chatArea.innerHTML = "";
+          settingsPanel.classList.add('hidden'); // 關閉設定面板
+          statusEl.textContent = "紀錄已清除";
+          setTimeout(() => statusEl.textContent = "準備就緒", 2000);
+      };
+
+      guideBtn.onclick = resetToStart;
     });
-    chatArea.appendChild(ctr);
-    chatArea.scrollTop = chatArea.scrollHeight;
-  }
-
-  function resetToStart() {
-    path = [];
-    currentNodeKey = "start";
-    chatArea.innerHTML = "";
-    appendMessage(textMap.start, "ai");
-    renderQuickReplies();
-  }
-
-  // ─── 處理 Quick Reply 點擊 ─────────────────────────────
-  async function handleSelect(label) {
-    appendMessage(label, "user");
-    path.push(label);
-    currentNodeKey = nextMap[label] || "start";
-    const node = flow[currentNodeKey];
-
-    // 本地引導
-    if (node.quickReplies.length > 0) {
-      const tip = textMap[currentNodeKey];
-      if (tip) appendMessage(tip, "ai");
-      return renderQuickReplies();
-    }
-
-     // 到終點要呼叫模型
-    const prompt = path.join("，");
-
-    // 1) 顯示 loading 泡泡，並保存元素
-    const loadingBox = appendMessage("生成中…請稍候", "ai");
-
-    // 2) 發送 request
-    let reply;
-    try {
-      const res = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: prompt })
-      });
-      reply = await res.text();
-    } catch (e) {
-      console.error(e);
-      reply = "⚠️ 無法取得 AI 回應";
-    }
-
-    // 3) 拿到回覆，就移除 loading
-    loadingBox.remove();
-
-    // 4) 再把真實回覆顯示出來
-    appendMessage(reply, "ai");
-
-    // 之後不自動重置，等用戶再按一次「引導流程」
-  }
-
-  // ─── 手動文字送出 & 清除 & 朗讀 ─────────────────────────
-  sendBtn.onclick = async () => {
-    const txt = userInput.value.trim();
-    if (!txt) return;
-    appendMessage(txt, "user");
-    userInput.value = "";
-    let ai;
-    try {
-      const res = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: txt })
-      });
-      ai = await res.text();
-    } catch {
-      ai = "⚠️ 連線錯誤";
-    }
-    appendMessage(ai, "ai");
-  };
-  clearBtn.onclick = () => userInput.value = "";
-  speakBtn.onclick = () => {
-    const msgs = chatArea.querySelectorAll(".message.ai");
-    if (!msgs.length) return;
-    speak(msgs[msgs.length - 1].textContent);
-  };
-
-  // ─── 引導流程按鈕 ─────────────────────────────────────
-  guideBtn.onclick = resetToStart;
-
-  // 第一次不自動啟動，下拉選擇要用戶自己按「引導流程」
-});
-</script>
-
-
+  </script>
 </body>
 </html>
