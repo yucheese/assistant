@@ -5,21 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
   <title>Gait AI Assistant</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Noto Sans TC', sans-serif; }
-    /* 隱藏捲軸但保持功能 */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     
-    /* 訊息進場動畫 */
     @keyframes slideIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .message-anim { animation: slideIn 0.3s ease-out forwards; }
 
-    /* 錄音時的波紋效果 */
     .pulse-ring {
       box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
       animation: pulse-red 1.5s infinite cubic-bezier(0.66, 0, 0, 1);
@@ -29,18 +31,19 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 h-screen flex flex-col overflow-hidden text-slate-800">
 
-  <header class="flex-none bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between z-20 shadow-sm">
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-screen flex flex-col overflow-hidden transition-colors duration-300">
+
+  <header class="flex-none bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between z-20 shadow-sm transition-colors">
     <div class="flex items-center gap-2">
-      <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">G</div>
-      <h1 class="text-lg font-bold text-slate-700">Gait AI</h1>
+      <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30">G</div>
+      <h1 class="text-lg font-bold text-slate-700 dark:text-slate-100">Gait AI</h1>
     </div>
     <div class="flex gap-2">
-        <button id="guideBtn" class="text-sm px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-full font-medium hover:bg-indigo-100 transition">
+        <button id="guideBtn" class="text-sm px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition">
             ✨ 引導模式
         </button>
-        <button id="toggleSettings" class="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition">
+        <button id="toggleSettings" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -49,25 +52,44 @@
     </div>
   </header>
 
-  <div id="settingsPanel" class="hidden bg-white border-b border-slate-200 p-4 shadow-lg absolute top-[60px] left-0 w-full z-10 transition-all">
-    <div class="max-w-2xl mx-auto space-y-4">
-        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">語音設定</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <label class="text-xs text-slate-500 mb-1 block">語音角色</label>
-                <select id="voiceSelect" class="w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-slate-50"></select>
-            </div>
-            <div>
-                <label class="text-xs text-slate-500 mb-1 block">語速: <span id="rateVal">1.0</span></label>
-                <input id="rate" type="range" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"/>
-            </div>
-            <div>
-                <label class="text-xs text-slate-500 mb-1 block">音調: <span id="pitchVal">1.0</span></label>
-                <input id="pitch" type="range" min="0" max="2" step="0.1" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"/>
+  <div id="settingsPanel" class="hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4 shadow-lg absolute top-[60px] left-0 w-full z-10 transition-all">
+    <div class="max-w-2xl mx-auto space-y-6">
+        
+        <div>
+            <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">外觀主題</h3>
+            <div class="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
+                <button onclick="setTheme('light')" id="btn-light" class="flex-1 py-1.5 text-sm rounded-md transition-all flex items-center justify-center gap-1 text-slate-600 dark:text-slate-400 hover:text-indigo-600">
+                    🌞 淺色
+                </button>
+                <button onclick="setTheme('dark')" id="btn-dark" class="flex-1 py-1.5 text-sm rounded-md transition-all flex items-center justify-center gap-1 text-slate-600 dark:text-slate-400 hover:text-indigo-600">
+                    🌙 深色
+                </button>
+                <button onclick="setTheme('system')" id="btn-system" class="flex-1 py-1.5 text-sm rounded-md transition-all flex items-center justify-center gap-1 text-slate-600 dark:text-slate-400 hover:text-indigo-600">
+                    💻 系統
+                </button>
             </div>
         </div>
-        <div class="flex justify-end pt-2 border-t mt-2">
-             <button id="clearBtn" class="text-xs text-red-500 hover:bg-red-50 px-3 py-2 rounded flex items-center gap-1 transition">
+
+        <div>
+            <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">語音設定</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">語音角色</label>
+                    <select id="voiceSelect" class="w-full text-sm border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-slate-50 dark:bg-slate-700 dark:text-white"></select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">語速: <span id="rateVal">1.0</span></label>
+                    <input id="rate" type="range" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-indigo-600"/>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">音調: <span id="pitchVal">1.0</span></label>
+                    <input id="pitch" type="range" min="0" max="2" step="0.1" value="1" class="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-indigo-600"/>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-700 mt-2">
+             <button id="clearBtn" class="text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 rounded flex items-center gap-1 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 清除對話紀錄
              </button>
@@ -78,13 +100,13 @@
   <main id="chatArea" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth max-w-3xl mx-auto w-full pb-24">
     </main>
 
-  <footer class="flex-none bg-white border-t border-slate-200 p-3 sm:p-4 fixed bottom-0 w-full z-20">
+  <footer class="flex-none bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-3 sm:p-4 fixed bottom-0 w-full z-20 transition-colors">
     <div class="max-w-3xl mx-auto flex flex-col gap-2">
         
         <div id="status" class="text-xs text-slate-400 text-center h-4 transition-all">準備就緒</div>
 
         <div class="flex items-end gap-2 relative">
-            <button id="micBtn" class="flex-none w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+            <button id="micBtn" class="flex-none w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                 <svg id="micIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
@@ -92,7 +114,7 @@
 
             <div class="flex-1 relative">
                 <textarea id="userInput" rows="1" 
-                    class="w-full bg-slate-100 border-0 rounded-2xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:bg-white resize-none text-slate-700 max-h-32 shadow-inner"
+                    class="w-full bg-slate-100 dark:bg-slate-700 border-0 rounded-2xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800 resize-none text-slate-700 dark:text-white max-h-32 shadow-inner placeholder-slate-400 dark:placeholder-slate-500 transition-colors"
                     placeholder="輸入訊息..."></textarea>
             </div>
 
@@ -102,7 +124,7 @@
                 </svg>
             </button>
             
-            <button id="speakBtn" class="absolute -top-10 right-0 text-xs bg-white border border-slate-200 shadow-sm px-2 py-1 rounded text-slate-500 hover:text-indigo-600 hidden">
+            <button id="speakBtn" class="absolute -top-10 right-0 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 shadow-sm px-2 py-1 rounded text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hidden">
                 🔊 重播
             </button>
         </div>
@@ -110,11 +132,64 @@
   </footer>
 
   <script>
+    // ─── 深色模式邏輯 (必須放在 DOMContentLoaded 前或內) ───
+    function setTheme(mode) {
+        // 更新 UI 按鈕狀態
+        const btns = ['light', 'dark', 'system'];
+        btns.forEach(b => {
+            const el = document.getElementById(`btn-${b}`);
+            // 清除選中樣式
+            el.classList.remove('bg-white', 'dark:bg-slate-600', 'shadow-sm', 'text-indigo-600', 'font-bold');
+            if (b === mode) {
+                // 加入選中樣式
+                el.classList.add('bg-white', 'dark:bg-slate-600', 'shadow-sm', 'text-indigo-600', 'font-bold');
+            }
+        });
+
+        // 實際切換邏輯
+        if (mode === 'dark') {
+            document.documentElement.classList.add('dark');
+            localStorage.theme = 'dark';
+        } else if (mode === 'light') {
+            document.documentElement.classList.remove('dark');
+            localStorage.theme = 'light';
+        } else {
+            // System mode
+            localStorage.removeItem('theme');
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
+      // ─── 初始化主題 ───
+      // 1. 檢查 LocalStorage 或 系統偏好
+      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          setTheme(localStorage.theme === 'dark' ? 'dark' : 'system');
+          // 如果是 system 但當下是 dark，補正 UI 顯示
+          if(!localStorage.theme) document.getElementById('btn-system').classList.add('bg-white', 'dark:bg-slate-600', 'shadow-sm', 'text-indigo-600', 'font-bold');
+      } else {
+          setTheme(localStorage.theme === 'light' ? 'light' : 'system');
+          if(!localStorage.theme) document.getElementById('btn-system').classList.add('bg-white', 'dark:bg-slate-600', 'shadow-sm', 'text-indigo-600', 'font-bold');
+      }
+
+      // 2. 監聽系統變化 (當使用者選 System 時自動切換)
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+          if (!('theme' in localStorage)) {
+              if (e.matches) {
+                  document.documentElement.classList.add('dark');
+              } else {
+                  document.documentElement.classList.remove('dark');
+              }
+          }
+      });
+
       const API_URL  = "https://premium-intimate-stallion.ngrok-free.app"; 
       const CHAT_URL = `${API_URL}/chat`;
 
-      // ─── 狀態與邏輯 ───
       const flow = {
         start:           { quickReplies:["初級熱身流程","體重管理建議","肌力訓練計畫"], isTerminal:false },
         warmup:          { quickReplies:["動態伸展","輕量有氧"],                   isTerminal:false },
@@ -234,8 +309,8 @@
           statusEl.textContent = "🎤 聆聽中...";
           statusEl.classList.add("text-red-500", "font-bold");
           micBtn.classList.add("bg-red-500", "text-white", "pulse-ring");
-          micBtn.classList.remove("bg-slate-100", "text-slate-600");
-          // 換成停止圖示
+          // 移除一般狀態的樣式 (包含深色模式的 class)
+          micBtn.classList.remove("bg-slate-100", "text-slate-600", "dark:bg-slate-700", "dark:text-slate-200");
           micIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />';
         };
         
@@ -258,7 +333,6 @@
               interimTranscript += transcript;
             }
           }
-          // 簡單的視覺反饋，顯示正在輸入
           if(interimTranscript) {
              statusEl.textContent = `🎤 ${interimTranscript}`;
           }
@@ -270,14 +344,13 @@
           statusEl.textContent = "準備就緒";
           statusEl.classList.remove("text-red-500", "font-bold");
           micBtn.classList.remove("bg-red-500", "text-white", "pulse-ring");
-          micBtn.classList.add("bg-slate-100", "text-slate-600");
-          // 換回麥克風圖示
+          // 加回一般狀態的樣式 (包含深色模式)
+          micBtn.classList.add("bg-slate-100", "text-slate-600", "dark:bg-slate-700", "dark:text-slate-200");
           micIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />';
       }
 
       setupRecognition();
       
-      // 整合的麥克風按鈕點擊事件
       micBtn.onclick = () => {
           if(!recognition) return;
           if(isRecording) {
@@ -287,25 +360,26 @@
           }
       };
 
-      // ─── 聊天介面渲染 ───
+      // ─── 聊天介面渲染 (需加入 dark classes) ───
       function appendMessage(text, sender="ai") {
         const wrapper = document.createElement("div");
         wrapper.className = `flex w-full mb-4 message-anim ${sender === "user" ? "justify-end" : "justify-start"}`;
 
         const bubble = document.createElement("div");
+        // 更新：AI 氣泡加入 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700
         bubble.className = `max-w-[85%] px-4 py-3 rounded-2xl text-base shadow-sm leading-relaxed whitespace-pre-wrap ${
             sender === "user" 
             ? "bg-indigo-600 text-white rounded-br-none" 
-            : "bg-white text-slate-700 border border-slate-100 rounded-bl-none"
+            : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-bl-none"
         }`;
         
         bubble.textContent = text;
         wrapper.appendChild(bubble);
         
-        // 如果是 AI，增加一個小頭像或標示 (選用)
         if(sender === "ai") {
             const avatar = document.createElement("div");
-            avatar.className = "w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2 text-indigo-600 font-bold text-xs flex-shrink-0 mt-1";
+            // 更新：Avatar 頭像深色模式適配
+            avatar.className = "w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center mr-2 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex-shrink-0 mt-1";
             avatar.innerText = "AI";
             wrapper.insertBefore(avatar, bubble);
         }
@@ -313,7 +387,6 @@
         chatArea.appendChild(wrapper);
         chatArea.scrollTop = chatArea.scrollHeight;
         
-        // 顯示重播按鈕
         if(sender === "ai") {
             speakBtn.classList.remove('hidden');
             speakBtn.onclick = () => speak(text);
@@ -330,12 +403,13 @@
         if (!replies.length) return;
 
         const container = document.createElement("div");
-        container.className = "quick-replies flex gap-2 flex-wrap mt-2 pl-10 mb-4 message-anim"; // pl-10 for align with AI text
+        container.className = "quick-replies flex gap-2 flex-wrap mt-2 pl-10 mb-4 message-anim";
         
         replies.forEach(label => {
           const btn = document.createElement("button");
           btn.textContent = label;
-          btn.className = "px-4 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-full hover:bg-indigo-50 hover:border-indigo-300 transition text-sm font-medium shadow-sm";
+          // 更新：按鈕加入 dark mode 樣式
+          btn.className = "px-4 py-1.5 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition text-sm font-medium shadow-sm";
           btn.onclick = () => handleSelect(label);
           container.appendChild(btn);
         });
@@ -357,7 +431,6 @@
       async function handleSelect(label) {
         appendMessage(label, "user");
         
-        // 移除舊的 quick replies
         const old = chatArea.querySelector(".quick-replies");
         if(old) old.style.display = 'none';
 
@@ -365,7 +438,6 @@
         currentNodeKey = nextMap[label] || "start";
         const node = flow[currentNodeKey];
 
-        // 本地引導
         if (node.quickReplies.length > 0) {
           const tip = textMap[currentNodeKey];
           if (tip) {
@@ -373,12 +445,11 @@
                   appendMessage(tip, "ai");
                   speak(tip);
                   renderQuickReplies();
-              }, 500); // 稍微延遲讓感覺更自然
+              }, 500);
           }
           return;
         }
 
-        // 到終點：呼叫 API
         const prompt = path.join("，");
         const loadingBox = appendMessage("🤔 正在思考中...", "ai");
         
@@ -395,7 +466,7 @@
           reply = "⚠️ 連線錯誤，請檢查後端服務。";
         }
         
-        loadingBox.parentElement.remove(); // 移除 Loading
+        loadingBox.parentElement.remove();
         appendMessage(reply, "ai");
         speak(reply);
       }
@@ -406,9 +477,8 @@
         
         appendMessage(txt, "user");
         userInput.value = "";
-        userInput.style.height = "auto"; // reset height
+        userInput.style.height = "auto";
 
-        // 移除 Quick Replies 避免混淆
         const old = chatArea.querySelector(".quick-replies");
         if(old) old.style.display = 'none';
 
